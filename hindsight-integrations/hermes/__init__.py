@@ -562,6 +562,12 @@ class HindsightMemoryProvider(MemoryProvider):
                 "when": {"mode": "local_embedded"},
             },
             {
+                "key": "llm_reasoning_effort",
+                "description": "Reasoning effort for the daemon's internal LLM calls (none/minimal/low/medium/high); set 'none' for thinking models that reject forced tool_choice, e.g. qwen via OpenRouter",
+                "default": "",
+                "when": {"mode": "local_embedded"},
+            },
+            {
                 "key": "bank_id",
                 "description": "Memory bank name (static fallback when bank_id_template is unset)",
                 "default": "hermes",
