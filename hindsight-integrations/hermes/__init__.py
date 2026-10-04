@@ -1197,7 +1197,17 @@ class HindsightMemoryProvider(MemoryProvider):
             # stop: restarting the daemon now would boot it keyless, which is the
             # exact outage this guards against. _get_client() below sends the daemon
             # whatever key WAS available (config, secret scope, or the file itself).
-            if _load_simple_env(_embedded_profile_env_path(self._config)) != _build_embedded_profile_env(self._config):
+            # Compare only the keys the plugin manages (#5222): the daemon itself
+            # appends keys to this file (e.g. HINDSIGHT_API_PORT) and a full-dict
+            # compare then reports drift on every session, restarting a healthy
+            # daemon each time. Extra keys in the file are left untouched — a
+            # rewrite only ever rewrites the managed set (see
+            # _materialize_embedded_profile_env, which writes expected_env keys
+            # and preserves foreign ones in _load_simple_env terms).
+            expected_env = _build_embedded_profile_env(self._config)
+            saved_env = _load_simple_env(_embedded_profile_env_path(self._config))
+            config_changed = any(saved_env.get(k) != v for k, v in expected_env.items())
+            if config_changed:
                 if _may_rewrite_profile_env(self._config):
                     _materialize_embedded_profile_env(self._config)
                     if _daemon_is_running(profile):
