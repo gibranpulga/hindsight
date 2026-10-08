@@ -384,6 +384,14 @@ def _build_embedded_profile_env(config: dict[str, Any], *, llm_api_key: str | No
             base_url = ""
     if base_url:
         env_values["HINDSIGHT_API_LLM_BASE_URL"] = str(base_url)
+    # Optional: pin reasoning effort for thinking-capable models that reject
+    # tool_choice=required in thinking mode (e.g. qwen via OpenRouter), which
+    # breaks reflect. Rides the managed key set so it survives env
+    # re-materialization; omitted when unset so nothing changes for configs
+    # that never set it.
+    reasoning_effort = config.get("llm_reasoning_effort")
+    if reasoning_effort:
+        env_values["HINDSIGHT_API_LLM_REASONING_EFFORT"] = str(reasoning_effort)
     if (idle_timeout := config.get("idle_timeout")) is None:
         idle_timeout = os.environ.get("HINDSIGHT_IDLE_TIMEOUT")
     if idle_timeout is not None and idle_timeout != "":
