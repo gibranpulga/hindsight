@@ -71,6 +71,22 @@ def test_daemon_added_foreign_key_is_not_drift(monkeypatch, tmp_path):
     assert order == ["built client"]
 
 
+def test_matching_reasoning_effort_does_not_restart_daemon(monkeypatch, tmp_path):
+    """A matching reasoning-effort setting is stable across daemon starts."""
+    expected = {
+        "HINDSIGHT_API_LLM_PROVIDER": "openrouter",
+        "HINDSIGHT_API_LLM_API_KEY": "sk-x",
+        "HINDSIGHT_API_LLM_MODEL": "qwen",
+        "HINDSIGHT_API_LOG_LEVEL": "info",
+        "HINDSIGHT_API_LLM_REASONING_EFFORT": "low",
+    }
+    provider, order = _provider_with_env(monkeypatch, tmp_path, expected, expected)
+
+    provider._daemon_start_worker()
+
+    assert order == ["built client"]
+
+
 def test_removed_managed_key_is_drift(monkeypatch, tmp_path):
     """A managed key missing from the file IS drift: rewrite + restart, in order."""
     expected = {

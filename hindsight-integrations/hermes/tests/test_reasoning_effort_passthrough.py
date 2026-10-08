@@ -56,22 +56,36 @@ def stat_mode(path):
     return stat.S_IMODE(path.stat().st_mode)
 
 
-def test_reasoning_effort_is_part_of_the_drift_compare():
-    """A reasoning-effort change in config IS drift: the managed-key compare in
-    _daemon_start_worker must see it (the env key it manages changed)."""
-    from hindsight_hermes import HindsightMemoryProvider
+def test_reasoning_effort_disk_drift_and_rematerialization(hermes_env):
+    """Compare actual profile values and ensure stale managed values are removed."""
+    config = {
+        "profile": "efforttest",
+        "llm_provider": "openrouter",
+        "llm_model": "qwen/qwen3.8-flash",
+        "llm_api_key": "sk-test",
+        "llm_reasoning_effort": "none",
+    }
+    path = embedded._materialize_embedded_profile_env(config)
+    assert embedded._profile_env_drifted(config) is False
 
-    before = embedded._build_embedded_profile_env(
-        {"llm_provider": "openrouter", "llm_model": "qwen", "llm_reasoning_effort": "none"}
-    )
-    after = embedded._build_embedded_profile_env(
-        {"llm_provider": "openrouter", "llm_model": "qwen", "llm_reasoning_effort": "low"}
-    )
-    # the compare the start worker runs: any managed key differing -> drift
-    drifted = any(before.get(k) != v for k, v in after.items()) or any(
-        k not in before for k in after
-    )
-    assert drifted
+    config["llm_reasoning_effort"] = "low"
+    assert embedded._profile_env_drifted(config) is True
+
+    # Values outside the plugin-managed set survive a synchronization.
+    path.write_text(path.read_text() + "HINDSIGHT_API_PORT=9177\n", encoding="utf-8")
+    embedded._materialize_embedded_profile_env(config)
+    saved = embedded._load_simple_env(path)
+    assert saved["HINDSIGHT_API_LLM_REASONING_EFFORT"] == "low"
+    assert saved["HINDSIGHT_API_PORT"] == "9177"
+    assert embedded._profile_env_drifted(config) is False
+
+    config.pop("llm_reasoning_effort")
+    assert embedded._profile_env_drifted(config) is True
+    embedded._materialize_embedded_profile_env(config)
+    saved = embedded._load_simple_env(path)
+    assert "HINDSIGHT_API_LLM_REASONING_EFFORT" not in saved
+    assert saved["HINDSIGHT_API_PORT"] == "9177"
+    assert embedded._profile_env_drifted(config) is False
 
 
 def test_schema_exposes_the_setting():
